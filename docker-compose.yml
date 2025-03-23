@@ -1,0 +1,61 @@
+
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15
+    container_name: companykeeper-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: companykeeper
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - companykeeper-network
+    restart: unless-stopped
+
+  # .NET Core Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: companykeeper-backend
+    depends_on:
+      - postgres
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__DefaultConnection=Host=postgres;Database=companykeeper;Username=postgres;Password=postgres
+      - Jwt__Key=${JWT_KEY}
+      - Jwt__Issuer=CompanyKeeper
+      - Jwt__Audience=CompanyKeeperUsers
+      - Jwt__ExpiryInMinutes=60
+    ports:
+      - "5000:80"
+    networks:
+      - companykeeper-network
+    restart: unless-stopped
+
+  # React Frontend
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: companykeeper-frontend
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+    networks:
+      - companykeeper-network
+    restart: unless-stopped
+
+networks:
+  companykeeper-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
